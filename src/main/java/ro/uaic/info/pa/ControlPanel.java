@@ -9,10 +9,17 @@ import org.reflections.util.FilterBuilder;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.lang.reflect.Constructor;
 import java.util.*;
 import java.util.List;
 
+/**
+ * Class that represents a JPanel component added to the app window,
+ * serving as a menu bar and that handles user interaction with
+ * action listeners
+ */
 public class ControlPanel extends JPanel {
 
     private DesignPanel designPanel;
@@ -23,7 +30,6 @@ public class ControlPanel extends JPanel {
     private final JButton addButton;
 
     public ControlPanel(DesignPanel designPanel) {
-        this.designPanel = designPanel;
         this.setBorder(BorderFactory.createTitledBorder("Control Panel"));
         this.setLayout(new FlowLayout(FlowLayout.LEFT, 25, 10));
 
@@ -38,13 +44,22 @@ public class ControlPanel extends JPanel {
         add(text);
 
         addButton = new JButton("ADD");
-        addingAddButtonActionListener();
+        //addingAddButtonActionListener();
         add(addButton);
 
         textLabel.setVisible(false);
         text.setVisible(false);
+
+        this.designPanel = designPanel;
+        addingDesignPanelMouseListener();
     }
 
+    /**
+     * Using the Reflections library and the native ClassLoader, the 'javax.swing' package
+     * is being searched for classes that are subtypes of JComponent
+     * (source: https://www.baeldung.com/reflections-library)
+     * @return a Vector of strings containing the simple and full names of the found classes
+     */
     private Vector<String> getSwingClassNames() {
         List<ClassLoader> classLoadersList = new LinkedList<>();
         classLoadersList.add(ClasspathHelper.contextClassLoader());
@@ -67,6 +82,12 @@ public class ControlPanel extends JPanel {
         return classNames;
     }
 
+    /**
+     * Makes the 'text area' hidden or shown depending on whether the specified class has a constructor
+     * with a single String parameter, and return the result
+     * @param swingClass the class whose constructors are being checked
+     * @return whether the class has a constructor with a single String parameter or not
+     */
     private boolean modifyTextArea(Class swingClass) {
         boolean hasStringConstructor = false;
         for (Constructor con : swingClass.getConstructors()) {
@@ -87,6 +108,11 @@ public class ControlPanel extends JPanel {
         return hasStringConstructor;
     }
 
+    /**
+     * The currently selected component in the ComboBox is being loaded as a class and then the
+     * 'text area' is being hidden or shown depending on whether the specified class has a constructor
+     * with a single String parameter
+     */
     private void addingComponentOptionsActionListener() {
         componentOptions.addActionListener(e -> {
             List<String> bothNames = Arrays.asList(componentOptions.getSelectedItem().toString().split(" "));
@@ -95,24 +121,72 @@ public class ControlPanel extends JPanel {
                 Class swingClass = Class.forName(longName.substring(1, longName.length() - 1));
                 modifyTextArea(swingClass);
             } catch (ClassNotFoundException classNotFoundException) {
+                System.err.println("Class not found due to error!");
                 classNotFoundException.printStackTrace();
             }
         });
     }
 
-    private void addingAddButtonActionListener() {
-        addButton.addActionListener(e -> {
-            List<String> bothNames = Arrays.asList(componentOptions.getSelectedItem().toString().split(" "));
-            String longName = bothNames.get(1);
-            try {
-                Class swingClass = Class.forName(longName.substring(1, longName.length() - 1));
-                designPanel.add((JComponent) swingClass.newInstance());
-            } catch (ClassNotFoundException classNotFoundException) {
-                classNotFoundException.printStackTrace();
-            } catch (IllegalAccessException illegalAccessException) {
-                illegalAccessException.printStackTrace();
-            } catch (InstantiationException instantiationException) {
-                instantiationException.printStackTrace();
+    /**
+     * Adds the component specified in the ComboBox at the location where the mouse event specifies
+     * (via the getX() and getY() methods) and then, according to whether it has a single String parameter
+     * constructor, it uses it with the JTextField text or uses the default constructor
+     * @param e the mouse event
+     */
+    private void handleComponentOption(MouseEvent e) {
+        System.out.println("pressed button!");
+        List<String> bothNames = Arrays.asList(componentOptions.getSelectedItem().toString().split(" "));
+        String longName = bothNames.get(1);
+        try {
+
+            Class swingClass = Class.forName(longName.substring(1, longName.length() - 1));
+            JComponent component;
+            if (!modifyTextArea(swingClass)) {
+                component = (JComponent) swingClass.newInstance();
+                component.setBounds(0, 0, 400, 400);
+                designPanel.add(component);
+            } else {
+                Constructor ctor = swingClass.getConstructor(String.class);
+                component = (JComponent) ctor.newInstance(text.getText());
+                component.setBounds(e.getX(), e.getY(), 200, 200);
+                designPanel.add(component);
+            }
+
+        } catch (Exception ex) {
+            System.err.println("Something went wrong!");
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Adds the component specified in the ComboBox at the location where the mouse pointer
+     * is currently located via the mouseClicked method (the rest are not used)
+     */
+    private void addingDesignPanelMouseListener() {
+        designPanel.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                handleComponentOption(e);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                // not used...
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                // not used...
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                // not used...
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                // not used...
             }
         });
     }
