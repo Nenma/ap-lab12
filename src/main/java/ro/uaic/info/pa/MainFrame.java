@@ -16,7 +16,6 @@ public class MainFrame extends JFrame {
         super("Swing Simulator");
         setSize(1600, 1000);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        add(new JPanel(), BorderLayout.CENTER);
 
         DesignPanel designPanel = new DesignPanel();
         add(designPanel, BorderLayout.CENTER);
